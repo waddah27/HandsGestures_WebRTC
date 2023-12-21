@@ -2,47 +2,58 @@ from typing import List
 import numpy as np
 from numpy import ndarray
 class GestureRecognition:
+    GESTURES = {-1: "Undefined",
+                0:"Zero",
+                1:"One",
+                2:"Two",
+                3:"Three",
+                4:"Four",
+                5:"Five",
+                6:"six",
+                7:"Seven",
+                8:"Eight",
+                9:"Nine"}
     def _vector_2_angle(self, v1, v2):
         uv1 = v1 / np.linalg.norm(v1)
         uv2 = v2 / np.linalg.norm(v2)
         angle = np.degrees(np.arccos(np.dot(uv1, uv2)))
         return angle
 
-    def _hand_angle(self, hand):
+    def _hand_angle(self, lmkArr):
         angle_list = []
         # thumb
         angle_ = self._vector_2_angle(
-            np.array([hand[0][0] - hand[2][0], hand[0][1] - hand[2][1]]),
-            np.array([hand[3][0] - hand[4][0], hand[3][1] - hand[4][1]])
+            np.array([lmkArr[0][0] - lmkArr[2][0], lmkArr[0][1] - lmkArr[2][1]]),
+            np.array([lmkArr[3][0] - lmkArr[4][0], lmkArr[3][1] - lmkArr[4][1]])
         )
         angle_list.append(angle_)
         # index
         angle_ = self._vector_2_angle(
-            np.array([hand[0][0] - hand[6][0], hand[0][1] - hand[6][1]]),
-            np.array([hand[7][0] - hand[8][0], hand[7][1] - hand[8][1]])
+            np.array([lmkArr[0][0] - lmkArr[6][0], lmkArr[0][1] - lmkArr[6][1]]),
+            np.array([lmkArr[7][0] - lmkArr[8][0], lmkArr[7][1] - lmkArr[8][1]])
         )
         angle_list.append(angle_)
         # middle
         angle_ = self._vector_2_angle(
-            np.array([hand[0][0] - hand[10][0], hand[0][1] - hand[10][1]]),
-            np.array([hand[11][0] - hand[12][0], hand[11][1] - hand[12][1]])
+            np.array([lmkArr[0][0] - lmkArr[10][0], lmkArr[0][1] - lmkArr[10][1]]),
+            np.array([lmkArr[11][0] - lmkArr[12][0], lmkArr[11][1] - lmkArr[12][1]])
         )
         angle_list.append(angle_)
         # ring
         angle_ = self._vector_2_angle(
-            np.array([hand[0][0] - hand[14][0], hand[0][1] - hand[14][1]]),
-            np.array([hand[15][0] - hand[16][0], hand[15][1] - hand[16][1]])
+            np.array([lmkArr[0][0] - lmkArr[14][0], lmkArr[0][1] - lmkArr[14][1]]),
+            np.array([lmkArr[15][0] - lmkArr[16][0], lmkArr[15][1] - lmkArr[16][1]])
         )
         angle_list.append(angle_)
         # pink
         angle_ = self._vector_2_angle(
-            np.array([hand[0][0] - hand[18][0], hand[0][1] - hand[18][1]]),
-            np.array([hand[19][0] - hand[20][0], hand[19][1] - hand[20][1]])
+            np.array([lmkArr[0][0] - lmkArr[18][0], lmkArr[0][1] - lmkArr[18][1]]),
+            np.array([lmkArr[19][0] - lmkArr[20][0], lmkArr[19][1] - lmkArr[20][1]])
         )
         angle_list.append(angle_)
         return angle_list
 
-    def _finger_status(self, lmList: ndarray) -> List[bool]:
+    def _finger_status(self, lmkArr: ndarray) -> List[bool]:
         """Detect each finger if open
 
         args:
@@ -51,11 +62,11 @@ class GestureRecognition:
             List[bool]: list of [True if finger is open, False other wise]
         """
         fingerList = []
-        originx, originy, originz = lmList[0]
+        originx, originy, originz = lmkArr[0]
         keypoint_list = [[5, 4], [6, 8], [10, 12], [14, 16], [18, 20]]
         for point in keypoint_list:
-            x1, y1, z1 = lmList[point[0]]
-            x2, y2, z2 = lmList[point[1]]
+            x1, y1, z1 = lmkArr[point[0]]
+            x2, y2, z2 = lmkArr[point[1]]
             if np.hypot(x2 - originx, y2 - originy) > np.hypot(x1 - originx, y1 - originy):
                 fingerList.append(True)
             else:
@@ -63,7 +74,14 @@ class GestureRecognition:
 
         return fingerList
 
-    def _classify(self, hand):
+    def _classify_finger_status(self, lmkArr):
+        # thumbOpen, firstOpen, secondOpen, thirdOpen, fourthOpen = self._finger_status(lmkArr)
+        finger_status = self._finger_status(lmkArr)
+        number = sum(finger_status)
+        return self.GESTURES[number], number
+
+
+    def _classify(self, lmkArr):
         thr_angle = 65.
         thr_angle_thumb = 30.
         thr_angle_s = 49.
@@ -80,9 +98,9 @@ class GestureRecognition:
                     "Eight":8,
                     "Nine":9}
 
-        angle_list = self._hand_angle(hand)
+        angle_list = self._hand_angle(lmkArr)
 
-        thumbOpen, firstOpen, secondOpen, thirdOpen, fourthOpen = self._finger_status(hand)
+        thumbOpen, firstOpen, secondOpen, thirdOpen, fourthOpen = self._finger_status(lmkArr)
         # Number
         if (angle_list[0] > thr_angle_thumb) and (angle_list[1] > thr_angle) and (angle_list[2] > thr_angle) and (
                 angle_list[3] > thr_angle) and (angle_list[4] > thr_angle) and \
@@ -127,9 +145,7 @@ class GestureRecognition:
 
         return gesture_str, gesture_[gesture_str]
 
-    def classify(self, hand_landmarks):
-        # hand = landmarks[:21, :2]
-        # palm = [hand_landmarks.landmark[i] for i in range(0, 21)]
-
-        gesture = self._classify(hand_landmarks)
-        return gesture
+    def classify(self, lmkArr):
+        # gesture = self._classify(lmkArr)
+        gesture, gesture_int = self._classify_finger_status(lmkArr)
+        return gesture, gesture_int
