@@ -1,3 +1,4 @@
+from typing import List
 import mediapipe as mp
 import cv2
 import numpy as np
@@ -5,7 +6,7 @@ import uuid
 import os
 from Fingers_5_2_recognition import Fingers_5_2_exercise
 from HandGestureRecognition import GestureRecognition
-from demo_gesture_recognition_palm_orientation import get_hand_rot
+
 from utils import get_lmks_array_3D, get_palm_label, vis_3d_space_hand_landmarks, vis_wrist_axs
 
 mp_drawing = mp.solutions.drawing_utils
@@ -13,9 +14,12 @@ mp_hands = mp.solutions.hands
 cap = cv2.VideoCapture(0)
 gr = GestureRecognition()
 gr25 =Fingers_5_2_exercise()
-
+num_hands = 0
+num_correct = 0
+num_wrong = 0
+num_raise_hands_fbks = 0
+gestures = [None, None]
 with mp_hands.Hands(min_detection_confidence=0.8, min_tracking_confidence=0.5) as hands:
-    print(hands)
     while cap.isOpened():
         ret, frame = cap.read()
         text_shift = 0
@@ -40,7 +44,10 @@ with mp_hands.Hands(min_detection_confidence=0.8, min_tracking_confidence=0.5) a
 
         # Rendering results
         if results.multi_hand_landmarks:
+            num_hands = len(results.multi_hand_landmarks)
+
             for num, hand in enumerate(results.multi_hand_landmarks):
+
                 # Extract Coordinates for wrist to put feedback text
                 coord = tuple(np.multiply(
                     np.array((hand.landmark[mp_hands.HandLandmark.WRIST].x, hand.landmark[mp_hands.HandLandmark.WRIST].y)),
@@ -56,13 +63,38 @@ with mp_hands.Hands(min_detection_confidence=0.8, min_tracking_confidence=0.5) a
                     text, _, palm_idx = get_palm_label(num, hand, results)
                     cv2.putText(image, text, coord, cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
                 lmk_arr = get_lmks_array_3D(hand)
+
                 gesture, gesture_int = gr25.check_5_plus_2_performance(lmk_arr)
+                # if gesture_int ==2 or gesture_int==5:
+                gestures[num] = gesture_int
                 cv2.putText(image, gesture, (coord[0],coord[1]+30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
 
                 # Render Wrist Angles
-                image,_ = get_hand_rot(image, hand, text_shift)
                 text_shift -= 30
                 image = vis_wrist_axs(image, hand)
+        print(gestures)
+        if num_hands < 2:
+            num_raise_hands_fbks+=1
+            num_correct = 0
+            num_wrong = 0
+            if num_raise_hands_fbks > 10:
+                # num_raise_hands_fbks = 0
+                cv2.putText(image, 'Raise both hands and make 5+2', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+        elif gestures != [2, 5] and gestures != [5, 2]:
+            print(f"{gestures} != {[2, 5]} or {[5, 2]}")
+            num_wrong +=1
+            num_correct = 0
+            num_raise_hands_fbks = 0
+            if num_wrong > 10:
+                # num_wrong = 0
+                cv2.putText(image, 'wrong, make 5 with one hand and 2 with the other', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+        else:
+            num_correct+=1
+            num_wrong = 0
+            num_raise_hands_fbks = 0
+            if num_correct > 10:
+                # num_correct = 0
+                cv2.putText(image, 'Correct', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
 
         cv2.imshow('Hand Tracking', image)
 
