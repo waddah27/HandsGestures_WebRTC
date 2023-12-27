@@ -52,10 +52,10 @@ class Fingers_5_2_exercise(GestureRecognition):
         originx, originy, originz = lmkArr[0]
         keypoint_list = [[5, 4], [6, 8], [10, 12], [14, 16], [18, 20]]
         for i, point in enumerate(keypoint_list):
-            # if i ==0:
-            #     x1,y1, z1 = lmkArr[point[0]] - self.thumb_tolerance_factor * np.linalg.norm(lmkArr[point[0]]-lmkArr[6])
-            # else:
-            x1, y1, z1 = lmkArr[point[0]]
+            if i ==0:
+                x1,y1, z1 = lmkArr[point[0]] - self.thumb_tolerance_factor * np.linalg.norm(lmkArr[point[0]]-lmkArr[6])
+            else:
+                x1, y1, z1 = lmkArr[point[0]]
             x2, y2, z2 = lmkArr[point[1]]
             if np.hypot(x2 - originx, y2 - originy) > np.hypot(x1 - originx, y1 - originy):
                 fingerList.append(True)

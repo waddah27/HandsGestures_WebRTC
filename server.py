@@ -7,20 +7,20 @@ import ssl
 import uuid
 import time
 import cv2
+from Exercise52Class import Exercise52
 from aiohttp import web
 from av import VideoFrame
 
 from aiortc import MediaStreamTrack, RTCPeerConnection, RTCSessionDescription
 from aiortc.contrib.media import MediaBlackhole, MediaPlayer, MediaRecorder, MediaRelay
-from demos_server_utils import run_fingers_5_2_exercise
+
 
 ROOT = os.path.dirname(__file__)
 
 logger = logging.getLogger("pc")
 pcs = set()
 relay = MediaRelay()
-
-
+exercise = Exercise52()
 class VideoTransformTrack(MediaStreamTrack):
     """
     A video stream track that transforms frames from an another track.
@@ -32,9 +32,12 @@ class VideoTransformTrack(MediaStreamTrack):
         super().__init__()  # don't forget this!
         self.track = track
         self.transform = transform
+        self.frame_count = 0
+        self.skip_factor = 1
 
     async def recv(self):
         frame = await self.track.recv()
+        self.frame_count+=1
 
         if self.transform == "cartoon":
             img = frame.to_ndarray(format="bgr24")
@@ -88,14 +91,17 @@ class VideoTransformTrack(MediaStreamTrack):
             new_frame.time_base = frame.time_base
             return new_frame
         else:
-            img = frame.to_ndarray(format="bgr24")
-            img = run_fingers_5_2_exercise(img)
-            # print(img.shape)
-            new_frame = VideoFrame.from_ndarray(img, format="bgr24")
-            new_frame.pts = frame.pts
-            new_frame.time_base = frame.time_base
+            if self.frame_count % self.skip_factor ==0:
+                img = frame.to_ndarray(format="bgr24")
+                img = exercise.run_fingers_5_2_exercise(img)
+                # print(img.shape)
+                new_frame = VideoFrame.from_ndarray(img, format="bgr24")
+                new_frame.pts = frame.pts
+                new_frame.time_base = frame.time_base
 
-            return new_frame
+                return new_frame
+            else:
+                return frame
 
 
 async def index(request):
