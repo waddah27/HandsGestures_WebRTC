@@ -49,10 +49,11 @@ class Exercise52:
 
         # Detections
         if self.frame_counter%self.frame_count_thresh ==0:
-            results = self.hands.process(image)
-            self.res_list.append(results)
-        else:
-            results = self.res_list[-1]
+            # results = self.hands.process(image)
+            self.res_list.append(self.hands.process(image))
+        # else:
+        #     results = self.res_list[-1]
+        results = self.res_list[-1]
 
         # Set flag to true
         image.flags.writeable = True
