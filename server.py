@@ -13,6 +13,7 @@ from av import VideoFrame
 
 from aiortc import MediaStreamTrack, RTCPeerConnection, RTCSessionDescription
 from aiortc.contrib.media import MediaBlackhole, MediaPlayer, MediaRecorder, MediaRelay
+from aiortc.contrib.signaling import object_from_string, object_to_string
 
 
 ROOT = os.path.dirname(__file__)
@@ -34,6 +35,7 @@ class VideoTransformTrack(MediaStreamTrack):
         self.transform = transform
         self.frame_count = 0
         self.skip_factor = 1
+        self.feedback_text = None
 
     async def recv(self):
         frame = await self.track.recv()
@@ -93,16 +95,15 @@ class VideoTransformTrack(MediaStreamTrack):
         else:
             if self.frame_count % self.skip_factor ==0:
                 img = frame.to_ndarray(format="bgr24")
-                img = exercise.run_fingers_5_2_exercise(img)
+                img, self.feedback_text = exercise.run_fingers_5_2_exercise(img)
                 # print(img.shape)
                 new_frame = VideoFrame.from_ndarray(img, format="bgr24")
                 new_frame.pts = frame.pts
                 new_frame.time_base = frame.time_base
 
-                return new_frame
+                return new_frame, self.feedback_text
             else:
-                return frame
-
+                return frame, self.feedback_text
 
 async def index(request):
     content = open(os.path.join(ROOT, "index.html"), "r").read()
@@ -110,7 +111,7 @@ async def index(request):
 
 
 async def javascript(request):
-    content = open(os.path.join(ROOT, "client.js"), "r").read()
+    content = open(os.path.join(ROOT, "client2.js"), "r").read()
     return web.Response(content_type="application/javascript", text=content)
 
 
@@ -119,6 +120,7 @@ async def offer(request):
     offer = RTCSessionDescription(sdp=params["sdp"], type=params["type"])
 
     pc = RTCPeerConnection()
+    data_channel = pc.createDataChannel('textChannel')
     pc_id = "PeerConnection(%s)" % uuid.uuid4()
     pcs.add(pc)
 
@@ -138,8 +140,9 @@ async def offer(request):
     def on_datachannel(channel):
         @channel.on("message")
         def on_message(message):
-            if isinstance(message, str) and message.startswith("ping"):
-                channel.send("pong" + message[4:])
+            channel.send(.feedback_text)
+            # if isinstance(message, str) and message.startswith("ping"):
+            #     channel.send("pong" + message[4:])
 
     @pc.on("connectionstatechange")
     async def on_connectionstatechange():
@@ -161,6 +164,7 @@ async def offer(request):
                     relay.subscribe(track), transform=params["video_transform"]
                 )
             )
+
             if args.record_to:
                 recorder.addTrack(relay.subscribe(track))
 

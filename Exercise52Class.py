@@ -1,3 +1,4 @@
+from enum import Enum, IntEnum
 from typing import List
 import mediapipe as mp
 import cv2
@@ -9,6 +10,13 @@ from HandGestureRecognition import GestureRecognition
 import logging
 from utils import get_lmks_array_3D, get_palm_label, vis_3d_space_hand_landmarks, vis_wrist_axs
 
+class Exercise52Feedbacks(Enum):
+    CORRECT = ["Correct!", 0]
+    BOTH_INCORRECT = ["Try again. Show me “5” fingers with you “right” hand and “2” with your “left” one ", 1]
+    NOT_ENOUGH_HANDS = ["Raise both hands", 2]
+    ONLY_ONE_CORRECT = ["Watch carefully. You “left” hand is correct. But the right hand is not", 3]
+    INCORRECT_FINGERS = ["It is 5 and 2, but you should use index and middle fingers. Try again", 4]
+
 class Exercise52:
     def __init__(self) -> None:
         self.mp_drawing = mp.solutions.drawing_utils
@@ -17,20 +25,49 @@ class Exercise52:
         self.gr25 =Fingers_5_2_exercise()
         self.frame_count_thresh = 5
         self.feedback_text = None
-        self.restart()
-        self.reset_counters()
+        self.feedbacks_count_list = np.zeros(5)
 
-    def reset_counters(self):
-        self.frame_counter = 0
+        self.restart()
+        self.reset_feedbacks_counters()
+
+
+    def reset_feedbacks_counters(self):
         self.num_correct = 0
         self.num_wrong = 0
-        self.num_raise_hands_fbks = 0
+        self.num_wrong_fingers = 0
+        self.only_one_correct = 0
+        self.num_not_enough_hands = 0
 
     def restart(self):
+        self.frame_counter = 0
         self.num_hands = 0
         self.gestures = [None, None]
 
+    def count_status(self, idx_status):
+        """
+        counts the frames where status appears
+            0: num correct counter
+            1: num wrong counter
+            2: num not enough hands counter
+        args:
+            idx_status: the status index that we are monitoring
+        """
+        self.feedbacks_count_list[idx_status]+=1
+        self.feedbacks_count_list[:idx_status] = 0
+        self.feedbacks_count_list[idx_status+1:] = 0
 
+        # if idx_status == Exercise52Feedbacks.NOT_ENOUGH_HANDS.value[1]:
+        #     self.num_not_enough_hands+=1
+        #     self.num_correct = 0
+        #     self.num_wrong = 0
+        # elif idx_status == Exercise52Feedbacks.CORRECT.value[1]:
+        #     self.num_correct +=1
+        #     self.num_not_enough_hands = 0
+        #     self.num_wrong = 0
+        # elif idx_status == Exercise52Feedbacks.BOTH_INCORRECT.value[1]:
+        #     self.num_wrong+=1
+        #     self.num_correct = 0
+        #     self.num_not_enough_hands = 0
 
     def run_fingers_5_2_exercise(self, frame):
 
@@ -92,33 +129,34 @@ class Exercise52:
         print(self.num_hands)
 
         if self.num_hands < 2:
-            self.num_raise_hands_fbks+=1
-            self.num_correct = 0
-            self.num_wrong = 0
-            if self.num_raise_hands_fbks > self.frame_count_thresh:
-                self.feedback_text = 'Raise both hands and make 5+2'
-                # num_raise_hands_fbks = 0
+            self.count_status(Exercise52Feedbacks.NOT_ENOUGH_HANDS.value[1])
+            if self.feedbacks_count_list[Exercise52Feedbacks.NOT_ENOUGH_HANDS.value[1]] > self.frame_count_thresh:
+                self.feedback_text = Exercise52Feedbacks.NOT_ENOUGH_HANDS.value[0] #'Raise both hands and make 5+2'
                 image = cv2.putText(image, self.feedback_text , (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
         elif self.gestures != [2, 5] and self.gestures != [5, 2]:
-            print(f"{self.gestures} != {[2, 5]} or {[5, 2]}")
-            self.num_wrong +=1
-            self.num_correct = 0
-            self.num_raise_hands_fbks = 0
-            if self.num_wrong > self.frame_count_thresh:
+            self.count_status(Exercise52Feedbacks.BOTH_INCORRECT.value[1])
+            if self.feedbacks_count_list[Exercise52Feedbacks.BOTH_INCORRECT.value[1]] > self.frame_count_thresh:
+                # print(f"{self.gestures} != {[2, 5]} or {[5, 2]}")
+                # self.num_wrong +=1
+                # self.num_correct = 0
+                # self.num_not_enough_hands = 0
+                # if self.num_wrong > self.frame_count_thresh:
                 if -1 in self.gestures and 5 in self.gestures:
-                    self.feedback_text = "Wrong, use index and middle fingers to make 2"
+                    self.feedback_text = Exercise52Feedbacks.ONLY_ONE_CORRECT.value[0] #"Wrong, use index and middle fingers to make 2"
                 elif -1 in self.gestures and 5 not in self.gestures:
-                    self.feedback_text = "use index and middle fingers to make 2, make 5 in the other hand"
+                    self.feedback_text = Exercise52Feedbacks.INCORRECT_FINGERS.value[0]
                 else:
-                    self.feedback_text = f'wrong, make 5 in one hand and 2 in the other'
+                    self.feedback_text = Exercise52Feedbacks.BOTH_INCORRECT.value[0]
                 # num_wrong = 0
                 image = cv2.putText(image, self.feedback_text, (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
         else:
-            self.num_correct+=1
-            self.num_wrong = 0
-            self.num_raise_hands_fbks = 0
-            if self.num_correct > self.frame_count_thresh:
-                self.feedback_text = 'Correct'
+            # self.num_correct+=1
+            # self.num_wrong = 0
+            # self.num_not_enough_hands = 0
+            self.count_status(Exercise52Feedbacks.CORRECT.value[1])
+            # if self.num_correct > self.frame_count_thresh:
+            if self.feedbacks_count_list[Exercise52Feedbacks.CORRECT.value[1]] > self.frame_count_thresh:
+                self.feedback_text = Exercise52Feedbacks.CORRECT.value[0]
                 # num_correct = 0
                 image = cv2.putText(image, self.feedback_text, (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
-        return image
+        return image, self.feedback_text
