@@ -13,7 +13,6 @@ from av import VideoFrame
 
 from aiortc import MediaStreamTrack, RTCPeerConnection, RTCSessionDescription
 from aiortc.contrib.media import MediaBlackhole, MediaPlayer, MediaRecorder, MediaRelay
-from aiortc.contrib.signaling import object_from_string, object_to_string
 
 
 ROOT = os.path.dirname(__file__)
@@ -35,7 +34,6 @@ class VideoTransformTrack(MediaStreamTrack):
         self.transform = transform
         self.frame_count = 0
         self.skip_factor = 1
-        self.feedback_text = None
 
     async def recv(self):
         frame = await self.track.recv()
@@ -118,7 +116,6 @@ async def offer(request):
     offer = RTCSessionDescription(sdp=params["sdp"], type=params["type"])
 
     pc = RTCPeerConnection()
-    data_channel = pc.createDataChannel('textChannel')
     pc_id = "PeerConnection(%s)" % uuid.uuid4()
     pcs.add(pc)
 
@@ -138,7 +135,6 @@ async def offer(request):
     def on_datachannel(channel):
         @channel.on("message")
         def on_message(message):
-            # channel.send(.feedback_text)
             if isinstance(message, str) and message.startswith("ping"):
                 channel.send("pong" + message[4:])
 
@@ -162,7 +158,6 @@ async def offer(request):
                     relay.subscribe(track), transform=params["video_transform"]
                 )
             )
-
             if args.record_to:
                 recorder.addTrack(relay.subscribe(track))
 
