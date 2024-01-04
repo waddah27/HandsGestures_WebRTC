@@ -12,9 +12,9 @@ from utils import get_lmks_array_3D, get_palm_label, vis_3d_space_hand_landmarks
 
 class Exercise52Feedbacks(Enum):
     CORRECT = ["Correct!", 0]
-    BOTH_INCORRECT = ["Try again. Show me “5” fingers with you “right” hand and “2” with your “left” one ", 1]
+    BOTH_INCORRECT = ["Try again. Show me 5 fingers with you right hand and 2 with your left one ", 1]
     NOT_ENOUGH_HANDS = ["Raise both hands", 2]
-    ONLY_ONE_CORRECT = ["Watch carefully. You “left” hand is correct. But the right hand is not", 3]
+    ONLY_ONE_CORRECT = ["Watch carefully. You left hand is correct. But the right hand is not", 3]
     INCORRECT_FINGERS = ["It is 5 and 2, but you should use index and middle fingers. Try again", 4]
 
 class Exercise52:
