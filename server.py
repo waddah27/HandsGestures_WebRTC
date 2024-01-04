@@ -93,17 +93,15 @@ class VideoTransformTrack(MediaStreamTrack):
             new_frame.time_base = frame.time_base
             return new_frame
         else:
-            if self.frame_count % self.skip_factor ==0:
-                img = frame.to_ndarray(format="bgr24")
-                img, self.feedback_text = exercise.run_fingers_5_2_exercise(img)
-                # print(img.shape)
-                new_frame = VideoFrame.from_ndarray(img, format="bgr24")
-                new_frame.pts = frame.pts
-                new_frame.time_base = frame.time_base
+            img = frame.to_ndarray(format="bgr24")
+            img = exercise.run_fingers_5_2_exercise(img)
+            # print(img.shape)
+            new_frame = VideoFrame.from_ndarray(img, format="bgr24")
+            new_frame.pts = frame.pts
+            new_frame.time_base = frame.time_base
 
-                return new_frame, self.feedback_text
-            else:
-                return frame, self.feedback_text
+            return new_frame
+
 
 async def index(request):
     content = open(os.path.join(ROOT, "index.html"), "r").read()

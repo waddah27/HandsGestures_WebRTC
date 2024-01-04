@@ -42,6 +42,7 @@ class Exercise52:
         self.frame_counter = 0
         self.num_hands = 0
         self.gestures = [None, None]
+        self.res_list = [None]
 
     def count_status(self, idx_status):
         """
@@ -73,6 +74,7 @@ class Exercise52:
 
         self.frame_counter+=1
         text_shift = 0
+
         # BGR 2 RGB
         image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
@@ -84,9 +86,11 @@ class Exercise52:
 
         # Detections
         if self.frame_counter%self.frame_count_thresh ==0:
-            results = self.hands.process(image)
-        else:
-            results = None
+            # results = self.hands.process(image)
+            self.res_list.append(self.hands.process(image))
+        # else:
+        #     results = self.res_list[-1]
+        results = self.res_list[-1]
 
         # Set flag to true
         image.flags.writeable = True
