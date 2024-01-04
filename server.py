@@ -111,7 +111,7 @@ async def index(request):
 
 
 async def javascript(request):
-    content = open(os.path.join(ROOT, "client2.js"), "r").read()
+    content = open(os.path.join(ROOT, "client.js"), "r").read()
     return web.Response(content_type="application/javascript", text=content)
 
 
@@ -140,9 +140,9 @@ async def offer(request):
     def on_datachannel(channel):
         @channel.on("message")
         def on_message(message):
-            channel.send(.feedback_text)
-            # if isinstance(message, str) and message.startswith("ping"):
-            #     channel.send("pong" + message[4:])
+            # channel.send(.feedback_text)
+            if isinstance(message, str) and message.startswith("ping"):
+                channel.send("pong" + message[4:])
 
     @pc.on("connectionstatechange")
     async def on_connectionstatechange():
