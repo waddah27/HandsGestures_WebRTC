@@ -218,7 +218,7 @@ if __name__ == "__main__":
 
 
 
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 8089))
     app = web.Application()
     app.on_shutdown.append(on_shutdown)
     app.router.add_get("/", index)
