@@ -11,7 +11,7 @@ from Exercise52Class import Exercise52
 from aiohttp import web
 from av import VideoFrame
 
-from aiortc import MediaStreamTrack, RTCPeerConnection, RTCSessionDescription
+from aiortc import MediaStreamTrack, RTCPeerConnection, RTCSessionDescription, VideoStreamTrack
 from aiortc.contrib.media import MediaBlackhole, MediaPlayer, MediaRecorder, MediaRelay
 
 
@@ -21,7 +21,9 @@ logger = logging.getLogger("pc")
 pcs = set()
 relay = MediaRelay()
 exercise = Exercise52()
-class VideoTransformTrack(MediaStreamTrack):
+result_queue = asyncio.Queue()
+res = None
+class VideoTransformTrack(VideoStreamTrack):
     """
     A video stream track that transforms frames from an another track.
     """
@@ -34,9 +36,13 @@ class VideoTransformTrack(MediaStreamTrack):
         self.transform = transform
         self.frame_count = 0
         self.skip_factor = 1
+        self.feedback = None
+        self.channel = None
 
     async def recv(self):
+        global res
         frame = await self.track.recv()
+
         self.frame_count+=1
 
         if self.transform == "cartoon":
@@ -92,12 +98,15 @@ class VideoTransformTrack(MediaStreamTrack):
             return new_frame
         else:
             img = frame.to_ndarray(format="bgr24")
+            img = cv2.flip(img, 1)
             img = exercise.run_fingers_5_2_exercise(img)
-            # print(img.shape)
             new_frame = VideoFrame.from_ndarray(img, format="bgr24")
             new_frame.pts = frame.pts
             new_frame.time_base = frame.time_base
-
+            self.feedback = exercise.feedback_text
+            res = exercise.feedback_rus
+            print(f"RESULT MESSAGE = {res}")
+            # print(self.feedback)
             return new_frame
 
 
@@ -131,12 +140,6 @@ async def offer(request):
     else:
         recorder = MediaBlackhole()
 
-    @pc.on("datachannel")
-    def on_datachannel(channel):
-        @channel.on("message")
-        def on_message(message):
-            if isinstance(message, str) and message.startswith("ping"):
-                channel.send("pong" + message[4:])
 
     @pc.on("connectionstatechange")
     async def on_connectionstatechange():
@@ -147,16 +150,22 @@ async def offer(request):
 
     @pc.on("track")
     def on_track(track):
+        global res
         log_info("Track %s received", track.kind)
 
         if track.kind == "audio":
             pc.addTrack(player.audio)
             recorder.addTrack(track)
         elif track.kind == "video":
-            pc.addTrack(
-                VideoTransformTrack(
+            video_track = VideoTransformTrack(
                     relay.subscribe(track), transform=params["video_transform"]
                 )
+            feedback = video_track.recv()
+            # Put the result in the queue for further processing
+            # result_queue.put_nowait(feedback)
+            # res = feedback
+            pc.addTrack(
+                video_track
             )
             if args.record_to:
                 recorder.addTrack(relay.subscribe(track))
@@ -165,6 +174,17 @@ async def offer(request):
         async def on_ended():
             log_info("Track %s ended", track.kind)
             await recorder.stop()
+
+    @pc.on("datachannel")
+    def on_datachannel(channel):
+        global res
+        @channel.on("message")
+        def on_message(message):
+
+            global res
+            if res is not None:
+                channel.send(res)
+            
 
     # handle offer
     await pc.setRemoteDescription(offer)

@@ -134,14 +134,28 @@ function start() {
                 dc.send(message);
             }, 1000);
         };
+        // dc.onmessage = function(evt) {
+        //     dataChannelLog.textContent += '< ' + evt.data + '\n';
+
+        //     if (evt.data.substring(0, 4) === 'pong') {
+        //         var elapsed_ms = current_stamp() - parseInt(evt.data.substring(5), 10);
+        //         dataChannelLog.textContent += ' RTT ' + elapsed_ms + ' ms\n';
+        //     }
+        // };
+        // Modify the onmessage event handler for Data Channel
         dc.onmessage = function(evt) {
+            var dataChannelLog = document.getElementById('data-channel'); // Get the pre element
             dataChannelLog.textContent += '< ' + evt.data + '\n';
 
             if (evt.data.substring(0, 4) === 'pong') {
                 var elapsed_ms = current_stamp() - parseInt(evt.data.substring(5), 10);
                 dataChannelLog.textContent += ' RTT ' + elapsed_ms + ' ms\n';
             }
+
+            // Scroll to the bottom to show the latest messages
+            dataChannelLog.scrollTop = dataChannelLog.scrollHeight;
         };
+
     }
 
     var constraints = {
