@@ -133,7 +133,8 @@ function start() {
                 dataChannelLog.textContent += '> ' + message + '\n';
                 dc.send(message);
             }, 1000);
-            document.getElementById(".mask1").attr("src", "/masks/2.jpg")
+            document.querySelector("#mask1").style.visibility = 'visible';
+            document.querySelector("#mask2").style.visibility = 'visible';
 
         };
         // dc.onmessage = function(evt) {
