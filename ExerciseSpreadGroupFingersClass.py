@@ -16,7 +16,7 @@ class ExerciseSpreadGroupFingers(Exercise52):
         super().__init__()
         self.Fing_det = FingerGestureRecognision()
         self.reset_feedbacks_counters()
-        self.feedbacks_count_list = np.zeros(3)
+        self.feedbacks_count_vector = np.zeros(3)
 
     def reset_feedbacks_counters(self):
         self.spread_count = 0
@@ -73,7 +73,7 @@ class ExerciseSpreadGroupFingers(Exercise52):
                 lmk_arr = get_lmks_array_3D(hand)
                 todo, state_idx = self.Fing_det.predict_spread(lmk_arr)
                 self.count_status(state_idx)
-                if self.feedbacks_count_list[state_idx] > self.frame_count_thresh:
+                if self.feedbacks_count_vector[state_idx] > self.frame_count_thresh:
                     if state_idx == ExerciseSpreadGroupFingersFeedbacks.GROUP_FINGERS.value[1]:
                         self.feedback_text = ExerciseSpreadGroupFingersFeedbacks.GROUP_FINGERS.value[0]
                     elif state_idx == ExerciseSpreadGroupFingersFeedbacks.SPREAD_FINGERS.value[1]:

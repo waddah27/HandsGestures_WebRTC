@@ -129,35 +129,16 @@ function start() {
         dc.onopen = function() {
             dataChannelLog.textContent += '- open\n';
             dcInterval = setInterval(function() {
-                var message = 'ping ' + current_stamp();
-                dataChannelLog.textContent += '> ' + message + '\n';
-                dc.send(message);
+                // var message;   //current_stamp();
+                // dataChannelLog.textContent += message //+= '> ' + message + '\n';
+                // dc.send(message);
+                dc.send(dataChannelLog.textContent)
             }, 1000);
             document.querySelector("#mask1").style.visibility = 'visible';
             document.querySelector("#mask2").style.visibility = 'visible';
 
         };
-        // dc.onmessage = function(evt) {
-        //     dataChannelLog.textContent += '< ' + evt.data + '\n';
 
-        //     if (evt.data.substring(0, 4) === 'pong') {
-        //         var elapsed_ms = current_stamp() - parseInt(evt.data.substring(5), 10);
-        //         dataChannelLog.textContent += ' RTT ' + elapsed_ms + ' ms\n';
-        //     }
-        // };
-        // Modify the onmessage event handler for Data Channel
-        // dc.onmessage = function(evt) {
-        //     var dataChannelLog = document.getElementById('data-channel'); // Get the pre element
-        //     dataChannelLog.textContent += '< ' + evt.data + '\n';
-
-        //     if (evt.data.substring(0, 4) === 'pong') {
-        //         var elapsed_ms = current_stamp() - parseInt(evt.data.substring(5), 10);
-        //         dataChannelLog.textContent += ' RTT ' + elapsed_ms + ' ms\n';
-        //     }
-
-        //     // Scroll to the bottom to show the latest messages
-        //     dataChannelLog.scrollTop = dataChannelLog.scrollHeight;
-        // };
         dc.onmessage = function(evt) {
             var dataChannelLog = document.getElementById('data-channel'); // Get the pre element
 
@@ -174,6 +155,7 @@ function start() {
             dataChannelLog.appendChild(messageElement);
             // Scroll to the bottom to show the latest messages
             dataChannelLog.scrollTop = dataChannelLog.scrollHeight;
+
           };
 
     }

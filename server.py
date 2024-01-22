@@ -99,13 +99,13 @@ class VideoTransformTrack(VideoStreamTrack):
         else:
             img = frame.to_ndarray(format="bgr24")
             img = cv2.flip(img, 1)
-            img = exercise.run_fingers_5_2_exercise(img)
+            img = exercise.process(img)
             new_frame = VideoFrame.from_ndarray(img, format="bgr24")
             new_frame.pts = frame.pts
             new_frame.time_base = frame.time_base
             self.feedback = exercise.feedback_text
             res = exercise.feedback_rus
-            print(f"RESULT MESSAGE = {res}")
+            # print(f"RESULT MESSAGE = {res}")
             # print(self.feedback)
             return new_frame
 
@@ -184,7 +184,7 @@ async def offer(request):
             global res
             if res is not None:
                 channel.send(res)
-            
+
 
     # handle offer
     await pc.setRemoteDescription(offer)
