@@ -293,3 +293,4 @@ def finger_status(lmkArr: ndarray) -> List[bool]:
                 fingerList.append(False)
 
     return fingerList
+

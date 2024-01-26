@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import mediapipe as mp
 from FingerGestureDetector import FingerGestureRecognision
-from utils import get_hand_rot, get_lmks_array_3D, get_palm_label
+from general_utils.utils import get_hand_rot, get_lmks_array_3D, get_palm_label
 import time
 from datetime import datetime, timedelta
 

@@ -1,10 +1,10 @@
 from typing import List
 import numpy as np
-from HandGestureRecognition import GestureRecognition
-from utils import angle_f
+from detectors.HandGesturesDetector import GestureRecognition
+from general_utils.utils import angle_f
 
 
-class Fingers_5_2_exercise(GestureRecognition):
+class Fingers_5_2_Detector(GestureRecognition):
     def __init__(self) -> None:
         super().__init__()
         self.thr_angle_thumb = 30.

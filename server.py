@@ -7,7 +7,10 @@ import ssl
 import uuid
 import time
 import cv2
-from Exercise52Class import Exercise52
+from Exercises.Exercise52Class import Exercise52
+from Exercises.ExerciseLetterAEClass import ExerciseLetterAE
+from Exercises.ExerciseLetterPClass import ExerciseLetterP
+from Exercises.ExerciseSpreadGroupFingersClass import ExerciseSpreadGroupFingers
 from aiohttp import web
 from av import VideoFrame
 
@@ -20,7 +23,11 @@ ROOT = os.path.dirname(__file__)
 logger = logging.getLogger("pc")
 pcs = set()
 relay = MediaRelay()
-exercise = Exercise52()
+exercises = {1:Exercise52(),
+             2:ExerciseSpreadGroupFingers(),
+             3:ExerciseLetterP,
+             4:ExerciseLetterAE}
+exercise = None #Exercise52()
 result_queue = asyncio.Queue()
 res = None
 class VideoTransformTrack(VideoStreamTrack):
@@ -30,10 +37,11 @@ class VideoTransformTrack(VideoStreamTrack):
 
     kind = "video"
 
-    def __init__(self, track, transform):
+    def __init__(self, track, transform, exercise):
         super().__init__()  # don't forget this!
         self.track = track
         self.transform = transform
+        self.exercise = exercise
         self.frame_count = 0
         self.skip_factor = 1
         self.feedback = None
@@ -99,7 +107,7 @@ class VideoTransformTrack(VideoStreamTrack):
         else:
             img = frame.to_ndarray(format="bgr24")
             img = cv2.flip(img, 1)
-            img = exercise.process(img)
+            img = self.exercise.process(img)
             new_frame = VideoFrame.from_ndarray(img, format="bgr24")
             new_frame.pts = frame.pts
             new_frame.time_base = frame.time_base
@@ -158,7 +166,7 @@ async def offer(request):
             recorder.addTrack(track)
         elif track.kind == "video":
             video_track = VideoTransformTrack(
-                    relay.subscribe(track), transform=params["video_transform"]
+                    relay.subscribe(track), transform=params["video_transform"], exercise=exercise
                 )
             feedback = video_track.recv()
             # Put the result in the queue for further processing
@@ -223,6 +231,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--record-to", help="Write received media to a file."),
     parser.add_argument("--verbose", "-v", action="count")
+    parser.add_argument("--exercise", type=int, help="1 for exercise 5+2, 2 for exercise spread group fingers")
     args = parser.parse_args()
 
     if args.verbose:
@@ -237,8 +246,16 @@ if __name__ == "__main__":
         ssl_context = None
 
 
+    if args.port:
+        port = args.port
+    else:
+        port = int(os.environ.get("PORT", 8089))
+    if args.exercise:
+        exercise = exercises[args.exercise]
+    else:
+        exercise = Exercise52()
 
-    port = int(os.environ.get("PORT", 8089))
+
     app = web.Application()
     app.on_shutdown.append(on_shutdown)
     app.router.add_get("/", index)

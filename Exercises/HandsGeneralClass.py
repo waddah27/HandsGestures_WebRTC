@@ -4,6 +4,8 @@ import mediapipe as mp
 import numpy as np
 from numpy import ndarray
 
+from general_utils.utils import Calculate_distance_btwn_wrists
+
 class HandsGeneralClass:
     def __init__(self) -> None:
         self.mp_drawing = mp.solutions.drawing_utils
@@ -17,6 +19,8 @@ class HandsGeneralClass:
         self.left_lmk_arr: ndarray = None
         self.right_lmk_arr: ndarray = None
         self.switch = False
+        self.RightH_flag = False
+        self.LeftH_flag = False
 
         self.restart()
 
@@ -24,7 +28,6 @@ class HandsGeneralClass:
         self.frame_counter = 0
         self.num_hands = 0
         self.hands_list = []
-        self.gestures = [None, None]
         self.gestures_dic = {0:None, 1:None}
         self.res_list = [None]
         self.palm_idx = None
@@ -41,6 +44,25 @@ class HandsGeneralClass:
         self.feedbacks_count_vector[idx_status]+=1
         self.feedbacks_count_vector[:idx_status] = 0
         self.feedbacks_count_vector[idx_status+1:] = 0
+
+    def _clap_detection(self, image, lmk_arr):
+        self._assign_left_right_lmks(lmk_arr)
+        if self.left_lmk_arr is not None and self.right_lmk_arr is not None:
+            image, dist_wrists = Calculate_distance_btwn_wrists(image, self.left_lmk_arr, self.right_lmk_arr)
+            if dist_wrists is not None and dist_wrists < 0.5:
+                self.feedback_rus = "Clap detected!"
+                if self.switch:
+                    self.switch = False
+                else:
+                    self.switch = True
+
+    def _assign_left_right_lmks(self, lmk_arr):
+        if self.palm_idx == 0:
+            self.LeftH_flag = True
+            self.left_lmk_arr = lmk_arr
+        elif self.palm_idx == 1:
+            self.RightH_flag = True
+            self.right_lmk_arr = lmk_arr
 
     def process(self, frame):
         h, w,_ = frame.shape

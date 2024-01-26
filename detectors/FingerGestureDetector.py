@@ -1,9 +1,10 @@
 from typing import Dict, List, Tuple
 import numpy as np
 from numpy import ndarray
-from utils import angle_f, calculate_angle_btwn_fingers, get_hand_rot
+from general_utils.utils import angle_f
 import enum
-# class Fingers()
+
+
 class FingerGestureRecognision:
     """
     class to determine status of each finger and recognize the made gestures
@@ -39,11 +40,11 @@ class FingerGestureRecognision:
             List[bool]: list of [True if finger is open, False other wise]
         """
         fingerList = []
-        originx, originy = lmkArr[0]
+        originx, originy, _ = lmkArr[0]
         keypoint_list = [[5, 4], [6, 8], [10, 12], [14, 16], [18, 20]]
         for point in keypoint_list:
-            x1, y1 = lmkArr[point[0]]
-            x2, y2 = lmkArr[point[1]]
+            x1, y1, _ = lmkArr[point[0]]
+            x2, y2, _ = lmkArr[point[1]]
             if np.hypot(x2 - originx, y2 - originy) > np.hypot(x1 - originx, y1 - originy):
                 fingerList.append(True)
             else:
@@ -110,7 +111,7 @@ class FingerGestureRecognision:
             lmkArr (ndarray): array of predicted hand landmarks 21x3
             using_angles(bool): True, use the angles between fingers approach else use distance
         returns:
-            int: 0 if the fingers are spread, 1 if they are group, 2 otherwise
+            int: 1 if the fingers are spread, 0 if they are group, -1 otherwise
 
 
         """
@@ -120,8 +121,7 @@ class FingerGestureRecognision:
         else:
             ang_status = []
             ang_fingers = np.array(self._calculate_angle_btwn_fingers_v2(lmkArr))
-            # ang_rotations = np.array(get_hand_rot(lmkArr))
-            # print(f" orientation angles prod: {np.dot(ang_fingers, ang_rotations.T)}")
+
             for i in range(len(ang_fingers)):
                 if ang_fingers[i] > self.FINGERS_ANG_THRESH[i]:
                     ang_status.append(True)
@@ -131,13 +131,13 @@ class FingerGestureRecognision:
             print(f"ang thresh: {self.FINGERS_ANG_THRESH}")
             print(f"ang fingers: {ang_fingers}")
             if ang_status == [True, True, True, True]:
-                return 0
-            elif ang_status == [False, False, False, False]:
                 return 1
+            elif ang_status == [False, False, False, False]:
+                return 0
             else:
-                return 2
+                return -1
 
-    def predict_spread(self, lmkArr: ndarray) -> Tuple[str, int]:
+    def predict_spread(self, lmkArr: ndarray) -> int:
         """
         uses the are_fingers_spread method to generate instructions in str format
         args:
@@ -145,14 +145,8 @@ class FingerGestureRecognision:
         returns:
             str: the instruction associated with the predicted status for fingers (feedbacks)
         """
-        instructions = ["Spread your fingers!", "Group your fingers!", "Not all fingers are spread/grouped"]
-        is_spread = self.are_fingers_spread(lmkArr)
-        if is_spread==0:
-            return instructions[1], 1
-        elif is_spread==1:
-            return instructions[0], 0
-        else:
-            return instructions[2], 2
+        spread_state_idx = self.are_fingers_spread(lmkArr)
+        return spread_state_idx
 
     def is_hand_open(self, lmkArr: ndarray) -> bool:
         """

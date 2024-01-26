@@ -146,7 +146,7 @@ function start() {
             var messageElement = document.createElement('div');
 
             // Apply styling (set the font size)
-            messageElement.style.fontSize = '20px'; // Changed the font size
+            messageElement.style.fontSize = '16px'; // Changed the font size
 
             // Set the message content
             messageElement.textContent = '< ' + evt.data + '\n';

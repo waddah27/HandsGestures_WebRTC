@@ -1,21 +1,17 @@
-from enum import Enum, IntEnum
+from enum import Enum
 from typing import List
-import mediapipe as mp
 import cv2
 import numpy as np
-import uuid
-import os
-from Fingers_5_2_recognition import Fingers_5_2_exercise
-from HandGestureRecognition import GestureRecognition
-import logging
-from  HandsGeneralClass import HandsGeneralClass
-from utils import Calculate_distance_btwn_wrists, detect_palm_region, finger_status, get_fingers_lamndmarks, get_hand_motion_gradients, get_lmks_array_3D, get_palm_label, vis_3d_space_hand_landmarks, vis_wrist_axs
+from detectors.Fingers_5_2_Detector import Fingers_5_2_Detector
+from  Exercises.HandsGeneralClass import HandsGeneralClass
+from general_utils.utils import detect_palm_region, finger_status,  get_lmks_array_3D
 
 class Exercise52Feedbacks(Enum):
     CORRECT = ["Correct!",
                0,
-               {False:"Отлично! теперь кулак, а затем 2+5 пальцев",
-                True:"Отлично! теперь кулак, а затем 5+2 пальцев"}]
+               "Отлично! теперь кулак"]
+            #    {False:"Отлично! теперь кулак",
+            #     True:"Отлично! теперь кулак"}]
 
     BOTH_INCORRECT = ["Try again. Show me 5 fingers with you right hand and 2 with your left one ",
                       1,
@@ -43,36 +39,32 @@ class Exercise52Feedbacks(Enum):
     SWITCHED = ["This is 5+2 But Switched hands ",
                 6,
                 "Это 5+2 но поменялись руки"]
+    FIST = ["Great! Now Switch your hands!", 6, {False:"Отлично! теперь 2 + 5 !", True:"Отлично! теперь 5 + 2 !"}]
 
 class Exercise52(HandsGeneralClass):
     def __init__(self) -> None:
         super().__init__()
-        self.gr25 =Fingers_5_2_exercise()
+        self.gr25 =Fingers_5_2_Detector()
         self.feedbacks_count_vector = np.zeros(len(Exercise52Feedbacks))
-        self.RightH_flag = False
-        self.LeftH_flag = False
-        self.FirstPh_flag = False
-        self.SecondPh_flag = False
-        self.ThirdPh_flag = False
 
-    def _assign_left_right_lmks(self, lmk_arr):
-        if self.palm_idx == 0:
-            self.LeftH_flag = True
-            self.left_lmk_arr = lmk_arr
-        elif self.palm_idx == 1:
-            self.RightH_flag = True
-            self.right_lmk_arr = lmk_arr
 
-    def _clap_detection(self, image, lmk_arr):
-        self._assign_left_right_lmks(lmk_arr)
-        if self.left_lmk_arr is not None and self.right_lmk_arr is not None:
-            image, dist_wrists = Calculate_distance_btwn_wrists(image, self.left_lmk_arr, self.right_lmk_arr)
-            if dist_wrists is not None and dist_wrists < 0.5:
-                self.feedback_rus = "Clap detected!"
-                if self.switch:
-                    self.switch = False
-                else:
-                    self.switch = True
+        self.Do_Fist_flag = False
+        self.Fist_done = False
+        self.switch = False
+
+        self.done_steps = [False, False, False]
+        self.correct_state_dic = {
+            False:{0:2, 1:5},
+            True:{0:5, 1:2}
+        }
+        self.only_left_correct_dic = {
+            False:2,
+            True:5
+        }
+        self.only_right_correct_dic = {
+            False:5,
+            True:2
+        }
 
     def _detect_fist(self, lmk_arr):
         if lmk_arr is not None:
@@ -84,15 +76,7 @@ class Exercise52(HandsGeneralClass):
         else:
             return False
 
-    def _detect_phase(self, lmk_arr):
-        pass
-
-
-
-
-
     def process(self, frame):
-        text_shift = 0
         lmk_arr = None
         image, results = super().process(frame)
         if results is not None and results.multi_hand_landmarks:
@@ -120,7 +104,6 @@ class Exercise52(HandsGeneralClass):
 
                 # if gesture_int ==2 or gesture_int==5:
                 if num < 2:
-                    self.gestures[num] = gesture_int
                     if self.palm_idx is not None:
                         self.gestures_dic[self.palm_idx] = gesture_int
 
@@ -128,41 +111,47 @@ class Exercise52(HandsGeneralClass):
                                         self.mp_drawing.DrawingSpec(color=(121, 22, 76), thickness=2, circle_radius=4),
                                         self.mp_drawing.DrawingSpec(color=(250, 44, 250), thickness=2, circle_radius=2),
                                         )
-                # Render Wrist Angles
-                text_shift -= 30
 
         if self._detect_fist(self.left_lmk_arr) and self._detect_fist(self.right_lmk_arr):
-            self.feedback_rus = "КУЛАК!!"
+            self.Fist_done = True
+            if self.Do_Fist_flag:
+                self.count_status(Exercise52Feedbacks.FIST.value[1])
+                if self.feedbacks_count_vector[Exercise52Feedbacks.FIST.value[1]] > self.frame_count_thresh:
+                    self.feedback_rus = Exercise52Feedbacks.FIST.value[2][self.switch]
+                if self.feedbacks_count_vector[Exercise52Feedbacks.FIST.value[1]] > 10*self.frame_count_thresh:
+                    self.switch = True
+
+                    # self.Fist_flag = False
+            else:
+                self.count_status(Exercise52Feedbacks.BOTH_INCORRECT.value[1])
+                if self.feedbacks_count_vector[Exercise52Feedbacks.BOTH_INCORRECT.value[1]] > self.frame_count_thresh:
+                    self.feedback_rus = Exercise52Feedbacks.BOTH_INCORRECT.value[2][self.switch]
+
         elif self.num_hands < 2:
             self.count_status(Exercise52Feedbacks.NOT_ENOUGH_HANDS.value[1])
             if self.feedbacks_count_vector[Exercise52Feedbacks.NOT_ENOUGH_HANDS.value[1]] > self.frame_count_thresh:
                 self.feedback_text = Exercise52Feedbacks.NOT_ENOUGH_HANDS.value[0] #'Raise both hands and make 5+2'
                 self.feedback_rus = Exercise52Feedbacks.NOT_ENOUGH_HANDS.value[2]
 
-        elif self.gestures_dic != {0:2, 1:5}:
-            if self.gestures_dic == {0:5, 1:2}:
-                if self.switch:
-                    self.count_status(Exercise52Feedbacks.CORRECT.value[1])
-                    if self.feedbacks_count_vector[Exercise52Feedbacks.CORRECT.value[1]] > self.frame_count_thresh:
-                        self.feedback_text = Exercise52Feedbacks.CORRECT.value[0]
-                        self.feedback_rus = Exercise52Feedbacks.CORRECT.value[2][self.switch]
-                else:
-                    self.count_status(Exercise52Feedbacks.SWITCHED.value[1])
-                    if self.feedbacks_count_vector[Exercise52Feedbacks.SWITCHED.value[1]] > self.frame_count_thresh:
-                        self.feedback_text = Exercise52Feedbacks.SWITCHED.value[0]
-                        self.feedback_rus = Exercise52Feedbacks.SWITCHED.value[2]
-            elif self.gestures_dic[0] == 2:
-            # if 2 in self.gestures or 5 in self.gestures:
+        elif self.gestures_dic != self.correct_state_dic[self.switch]:
+            if self.gestures_dic == self.correct_state_dic[not self.switch]:
+                self.count_status(Exercise52Feedbacks.SWITCHED.value[1])
+                if self.feedbacks_count_vector[Exercise52Feedbacks.SWITCHED.value[1]] > self.frame_count_thresh:
+                    self.feedback_text = Exercise52Feedbacks.SWITCHED.value[0]
+                    self.feedback_rus = Exercise52Feedbacks.SWITCHED.value[2]
+
+            elif self.gestures_dic[0] == self.only_left_correct_dic[self.switch]:
                 self.count_status(Exercise52Feedbacks.ONLY_LEFT_CORRECT.value[1])
                 if self.feedbacks_count_vector[Exercise52Feedbacks.ONLY_LEFT_CORRECT.value[1]] > self.frame_count_thresh:
                     self.feedback_text = Exercise52Feedbacks.ONLY_LEFT_CORRECT.value[0]
                     self.feedback_rus = Exercise52Feedbacks.ONLY_LEFT_CORRECT.value[2][self.switch]
-            elif self.gestures_dic[1] == 5:
+
+            elif self.gestures_dic[1] == self.only_right_correct_dic[self.switch]:
                 self.count_status(Exercise52Feedbacks.ONLY_RIGHT_CORRECT.value[1])
                 if self.feedbacks_count_vector[Exercise52Feedbacks.ONLY_RIGHT_CORRECT.value[1]] > self.frame_count_thresh:
                     self.feedback_text = Exercise52Feedbacks.ONLY_RIGHT_CORRECT.value[0]
                     self.feedback_rus = Exercise52Feedbacks.ONLY_RIGHT_CORRECT.value[2][self.switch]
-            elif self.gestures_dic[0] == -1 and self.gestures_dic[1] == 5: #5 in self.gestures:
+            elif self.gestures_dic[0] == -1 and self.gestures_dic[1] == 5:
                 self.count_status(Exercise52Feedbacks.INCORRECT_FINGERS.value[1])
                 if self.feedbacks_count_vector[Exercise52Feedbacks.INCORRECT_FINGERS.value[1]] > self.frame_count_thresh:
                     self.feedback_text = Exercise52Feedbacks.INCORRECT_FINGERS.value[0]
@@ -174,18 +163,12 @@ class Exercise52(HandsGeneralClass):
                     self.feedback_text = Exercise52Feedbacks.BOTH_INCORRECT.value[0]
                     self.feedback_rus = Exercise52Feedbacks.BOTH_INCORRECT.value[2][self.switch]
         else:
-            if self.switch:
-                self.count_status(Exercise52Feedbacks.SWITCHED.value[1])
-                if self.feedbacks_count_vector[Exercise52Feedbacks.SWITCHED.value[1]] > self.frame_count_thresh:
-                    self.feedback_rus = Exercise52Feedbacks.SWITCHED.value[2]
-            else:
-                self.count_status(Exercise52Feedbacks.CORRECT.value[1])
-                if self.feedbacks_count_vector[Exercise52Feedbacks.CORRECT.value[1]] > self.frame_count_thresh:
-                    if not self.switch:
-                        self.FirstPh_flag = True
-                    else:
-                        self.ThirdPh_flag = True
-                    self.feedback_text = Exercise52Feedbacks.CORRECT.value[0]
-                    self.feedback_rus = Exercise52Feedbacks.CORRECT.value[2][self.switch]
+            self.count_status(Exercise52Feedbacks.CORRECT.value[1])
+            if self.feedbacks_count_vector[Exercise52Feedbacks.CORRECT.value[1]] > self.frame_count_thresh:
+                self.feedback_text = Exercise52Feedbacks.CORRECT.value[0]
+                self.feedback_rus = Exercise52Feedbacks.CORRECT.value[2]
+                self.Do_Fist_flag = True
+            if self.feedbacks_count_vector[Exercise52Feedbacks.CORRECT.value[1]] > 10 * self.frame_count_thresh:
+                self.switch = not self.switch
         # image = cv2.putText(image, self.feedback_text, (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
         return image
