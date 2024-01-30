@@ -34,10 +34,8 @@ class HandsGeneralClass:
 
     def count_status(self, idx_status):
         """
-        counts the frames where status appears
-            0: num correct counter
-            1: num wrong counter
-            2: num not enough hands counter
+        counts the occurrence of each feedback (status)
+
         args:
             idx_status: the status index that we are monitoring
         """

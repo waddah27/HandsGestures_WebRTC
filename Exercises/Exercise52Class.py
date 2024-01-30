@@ -7,6 +7,9 @@ from  Exercises.HandsGeneralClass import HandsGeneralClass
 from general_utils.utils import detect_palm_region, finger_status,  get_lmks_array_3D
 
 class Exercise52Feedbacks(Enum):
+    """
+    Feedbacks for exercise 5+2
+    """
     CORRECT = ["Correct!",
                0,
                "Отлично! теперь кулак"]
@@ -43,8 +46,13 @@ class Exercise52Feedbacks(Enum):
 
 class Exercise52(HandsGeneralClass):
     def __init__(self) -> None:
+        """
+        main class for exercise 5+2
+        """
         super().__init__()
         self.gr25 =Fingers_5_2_Detector()
+
+        # vector that counts the feedbacks occurrences (how many frames in which the feedback is detected)
         self.feedbacks_count_vector = np.zeros(len(Exercise52Feedbacks))
 
 
@@ -66,7 +74,15 @@ class Exercise52(HandsGeneralClass):
             True:2
         }
 
-    def _detect_fist(self, lmk_arr):
+    def _detect_fist(self, lmk_arr:np.ndarray) -> bool:
+        """
+        detects Fist gesture
+        args:
+        lmk_arr(ndarray): hand landmarks 3D array 21x3
+
+        returns:
+        bool: True if fist detected, False otherwise
+        """
         if lmk_arr is not None:
             fingers_status = finger_status(lmk_arr)
             if fingers_status == [True, False, False, False, False]:
@@ -76,7 +92,18 @@ class Exercise52(HandsGeneralClass):
         else:
             return False
 
-    def process(self, frame):
+    def process(self, frame: object)-> np.ndarray:
+        """
+        In this function applys all algorithms that are used for detecting steps and feedbacks for exercise 5+2
+        - hand landmarks detection
+        - covnert the land marks object to 3D ndarray
+        - verify correctness of the gestures that are related to the 5+2 exercise
+        args:
+            frame (aiortc object): recieved video frame from webrtc
+
+        returns:
+            ndarray: the processed image
+        """
         lmk_arr = None
         image, results = super().process(frame)
         if results is not None and results.multi_hand_landmarks:
@@ -170,5 +197,5 @@ class Exercise52(HandsGeneralClass):
                 self.Do_Fist_flag = True
             if self.feedbacks_count_vector[Exercise52Feedbacks.CORRECT.value[1]] > 10 * self.frame_count_thresh:
                 self.switch = not self.switch
-        # image = cv2.putText(image, self.feedback_text, (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
+
         return image
