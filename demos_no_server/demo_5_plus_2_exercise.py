@@ -4,16 +4,14 @@ import cv2
 import numpy as np
 import uuid
 import os
-from Fingers_5_2_recognition import Fingers_5_2_exercise
-from HandGestureRecognition import GestureRecognition
+from Fingers_5_2_recognition import Fingers_5_2_detector
 
-from utils import get_lmks_array_3D, get_palm_label, vis_3d_space_hand_landmarks, vis_wrist_axs
+from general_utils.utils import get_lmks_array_3D, get_palm_label, vis_wrist_axs
 
 mp_drawing = mp.solutions.drawing_utils
 mp_hands = mp.solutions.hands
 cap = cv2.VideoCapture(0)
-gr = GestureRecognition()
-gr25 =Fingers_5_2_exercise()
+gr25 =Fingers_5_2_detector()
 num_hands = 0
 num_correct = 0
 num_wrong = 0

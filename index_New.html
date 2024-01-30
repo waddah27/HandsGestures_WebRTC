@@ -14,7 +14,27 @@
     }
 
     video {
-        width: 50%;
+        width: 950px;
+        height: 720px;
+        display: block;
+    }
+    #mask1 {
+        position: relative;
+        width: 15%;
+        height: 20%;
+        left: 10%;
+        top: 10%;
+        z-index: 15;
+        visibility: hidden;
+    }
+    #mask2 {
+        position: relative;
+        width: 20%;
+        height: 20%;
+        left: 50%;
+        top: 10%;
+        z-index: 20;
+        visibility: hidden;
     }
 
     .option {
@@ -24,10 +44,58 @@
     #media {
         max-width: 1280px;
     }
+    /* Add some styling for better visualization */
+    #masks {
+        width: 950px;
+        height: 720px;
+        border: 1px solid #ccc;
+        padding: 20px;
+        object-fit: contain;
+    }
+
     </style>
 </head>
 <body>
+    <button id="start" onclick="start()">Start</button>
+    <button id="stop" style="display: none" onclick="stop()">Stop</button>
 
+<div id="container" style="display: flex; gap: 10px;">
+    <div id="media" style="flex-grow: 1;">
+        <h2>Media</h2>
+        <audio id="audio" autoplay="true"></audio>
+        <div id="masks">
+        <video id="video" autoplay="true" playsinline="true" style="position: absolute;"></video>
+        <img id="mask1" src="/masks/2.jpg" alt="Hand Mask 1">
+        <img id="mask2" src="/masks/5.jpg" alt="Hand Mask 2">
+        </div>
+    </div>
+
+    <div id="feedbacks-container" style="width: 40%;">
+        <h2>Feedbacks</h2>
+        <pre id="data-channel" style="border: 1px solid #ccc; padding: 10px; height: 50px; overflow-y: scroll;"></pre>
+    </div>
+</div>
+<!-- <p id="current-path"></p>
+
+<script>
+    // Get the current path (URL) using JavaScript
+    var currentPath = window.location.pathname;
+
+    // Display the current path in a paragraph element with id "current-path"
+    document.getElementById('current-path').textContent = 'Current Path: ' + currentPath;
+</script> -->
+
+
+<h2>State</h2>
+    <p>
+        ICE gathering state: <span id="ice-gathering-state"></span>
+    </p>
+    <p>
+        ICE connection state: <span id="ice-connection-state"></span>
+    </p>
+    <p>
+        Signaling state: <span id="signaling-state"></span>
+    </p>
 <h2>Options</h2>
 <div class="option">
     <input id="use-datachannel" checked="checked" type="checkbox"/>
@@ -75,30 +143,7 @@
     <label for="use-stun">Use STUN server</label>
 </div>
 
-<button id="start" onclick="start()">Start</button>
-<button id="stop" style="display: none" onclick="stop()">Stop</button>
 
-<h2>State</h2>
-<p>
-    ICE gathering state: <span id="ice-gathering-state"></span>
-</p>
-<p>
-    ICE connection state: <span id="ice-connection-state"></span>
-</p>
-<p>
-    Signaling state: <span id="signaling-state"></span>
-</p>
-
-<div id="media" style="display: none">
-    <h2>Media</h2>
-
-    <audio id="audio" autoplay="true"></audio>
-    <video id="video" autoplay="true" playsinline="true"></video>
-    <video id="video2" autoplay="true" playsinline="true"></video>
-</div>
-
-<h2>Data channel</h2>
-<pre id="data-channel" style="height: 200px;"></pre>
 
 <h2>SDP</h2>
 
@@ -108,6 +153,6 @@
 <h3>Answer</h3>
 <pre id="answer-sdp"></pre>
 
-<script src="client.js"></script>
+<script src="client_New.js"></script>
 </body>
 </html>

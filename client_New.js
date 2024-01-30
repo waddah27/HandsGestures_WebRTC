@@ -129,19 +129,35 @@ function start() {
         dc.onopen = function() {
             dataChannelLog.textContent += '- open\n';
             dcInterval = setInterval(function() {
-                var message = 'ping ' + current_stamp();
-                dataChannelLog.textContent += '> ' + message + '\n';
-                dc.send(message);
+                // var message;   //current_stamp();
+                // dataChannelLog.textContent += message //+= '> ' + message + '\n';
+                // dc.send(message);
+                dc.send(dataChannelLog.textContent)
             }, 1000);
-        };
-        dc.onmessage = function(evt) {
-            dataChannelLog.textContent += '< ' + evt.data + '\n';
+            document.querySelector("#mask1").style.visibility = 'visible';
+            document.querySelector("#mask2").style.visibility = 'visible';
 
-            if (evt.data.substring(0, 4) === 'pong') {
-                var elapsed_ms = current_stamp() - parseInt(evt.data.substring(5), 10);
-                dataChannelLog.textContent += ' RTT ' + elapsed_ms + ' ms\n';
-            }
         };
+
+        dc.onmessage = function(evt) {
+            var dataChannelLog = document.getElementById('data-channel'); // Get the pre element
+
+            // Create a new element to display the message
+            var messageElement = document.createElement('div');
+
+            // Apply styling (set the font size)
+            messageElement.style.fontSize = '16px'; // Changed the font size
+
+            // Set the message content
+            messageElement.textContent = '< ' + evt.data + '\n';
+
+            // Append the message element to the container
+            dataChannelLog.appendChild(messageElement);
+            // Scroll to the bottom to show the latest messages
+            dataChannelLog.scrollTop = dataChannelLog.scrollHeight;
+
+          };
+
     }
 
     var constraints = {
@@ -167,7 +183,7 @@ function start() {
             document.getElementById('media').style.display = 'block';
         }
         navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
-            document.getElementById("video2").srcObject = stream
+            document.getElementById("video").srcObject = stream
             stream.getTracks().forEach(function(track) {
                 pc.addTrack(track, stream);
             });
@@ -215,7 +231,7 @@ function sdpFilterCodec(kind, codec, realSdp) {
     var rtxRegex = new RegExp('a=fmtp:(\\d+) apt=(\\d+)\r$');
     var codecRegex = new RegExp('a=rtpmap:([0-9]+) ' + escapeRegExp(codec))
     var videoRegex = new RegExp('(m=' + kind + ' .*?)( ([0-9]+))*\\s*$')
-    
+
     var lines = realSdp.split('\n');
 
     var isKind = false;

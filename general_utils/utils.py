@@ -1,4 +1,4 @@
-from typing import Tuple, Any
+from typing import Tuple, Any, List
 import cv2
 import numpy as np
 import mediapipe as mp
@@ -120,7 +120,7 @@ def vis_3d_space_hand_landmarks(hand_landmarks):
     # Show plot
     plt.show(block=False)
 
-def get_lmks_array_3D(hand) -> ndarray:
+def get_lmks_array_3D(hand) -> ndarray|None:
     """Get ndarray of the hand landmarks
     args:
         hand (any): mp.solution object where the predicted landmarks are stored
@@ -133,7 +133,9 @@ def get_lmks_array_3D(hand) -> ndarray:
         for lmk in range(21):
             a = np.array([hand.landmark[lmk].x, hand.landmark[lmk].y, hand.landmark[lmk].z]) # First coord
             lmk_list.append(a)
-    return np.array(lmk_list)
+        return np.array(lmk_list)
+    else:
+        return None
 
 def get_palm_label(index: int, hand: Any, results: Any) -> Tuple[str, Tuple[int,int], int]:
     """
@@ -165,3 +167,130 @@ def get_palm_label(index: int, hand: Any, results: Any) -> Tuple[str, Tuple[int,
             output = text, coords, index
 
     return output
+
+def detect_palm_region(img:ndarray, hand:Any) -> Tuple[str |None, Tuple[int|None, int|None], int| None]:
+    """
+    Determines the left and right palm depending on the palm wrist location in the frame
+
+    args:
+        img (ndarray): video frame
+        hand (any): mp.solution object where the predicted landmarks are stored
+
+    returns:
+        Tuple[str, Tuple[int,int], int]: str = left or right labeling the detected palm
+                                        Tuple[int, int]: coordinates of wrist for putting the text str
+                                        int: the index of the detected palm
+    """
+    index = None
+    label = None
+    coords = None
+    h, w, _ = img.shape
+    left_thresh = 0.45
+    right_thresh = 0.55
+    cv2.line(img, (w//2,0), (w//2,h), (0,255,0), 2)
+    if hand.landmark[mp_hands.HandLandmark.WRIST].x > right_thresh:
+        index = 1 # right hand
+        label = 'Right'
+    elif hand.landmark[mp_hands.HandLandmark.WRIST].x < left_thresh:
+        index = 0 # left hand
+        label = 'Left'
+        # print(f'{label}: wrist = {hand.landmark[mp_hands.HandLandmark.WRIST].x} < {left_thresh}')
+
+    # Extract Coordinates
+    coords = tuple(np.multiply(
+        np.array((hand.landmark[mp_hands.HandLandmark.WRIST].x, hand.landmark[mp_hands.HandLandmark.WRIST].y)),
+    [640,480]).astype(int))
+    return label, coords, index
+
+def get_hand_motion_gradients(lmkArr, prev_landmarks):
+
+    # Initialize variables
+    prev_time = None
+    landmarks = lmkArr
+    velocity = None
+    acceleration = None
+    current_time = None
+    # Calculate velocity and acceleration
+    if prev_landmarks is not None:
+        current_time = cv2.getTickCount() / cv2.getTickFrequency()
+        time_elapsed = current_time - prev_time
+
+        if landmarks is not None:
+
+            # Calculate velocity
+            velocity = np.linalg.norm(landmarks - prev_landmarks) / time_elapsed
+
+            # Calculate acceleration
+            if prev_velocity is not None:
+                acceleration = (velocity - prev_velocity) / time_elapsed
+                print("Velocity:", velocity, "Acceleration:", acceleration)
+
+    prev_landmarks = landmarks
+    prev_velocity = velocity
+    prev_time = current_time
+
+    return velocity, acceleration
+
+def Calculate_distance_btwn_wrists(frame, lmk_arr_left, lmk_arr_right):
+    # Calculate the Euclidean distance between the wrists
+    wrist1 = lmk_arr_left[0]
+    wrist2 = lmk_arr_right[0]
+    if wrist1 is not None and wrist2 is not None:
+        distance = np.linalg.norm(wrist1 - wrist2)
+    else:
+        distance = 1
+
+    # Draw a line between the wrists
+    h, w, _ = frame.shape
+    wrist1_x, wrist1_y = int(wrist1[0] * w), int(wrist1[1] * h)
+    wrist2_x, wrist2_y = int(wrist2[0] * w), int(wrist2[1] * h)
+    cv2.line(frame, (wrist1_x, wrist1_y), (wrist2_x, wrist2_y), (0, 0, 255), 2)
+    # Display the distance
+    frame = cv2.putText(frame, f"Wrist Distance: {distance:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+    return frame, distance
+
+def get_fingers_lamndmarks(lmk_arr):
+    fingers = {
+                'thumb': [lmk_arr[i] for i in range(1,5)],
+                'index': [lmk_arr[i] for i in range(5,9)],
+                'middle': [lmk_arr[i] for i in range(9, 13)],
+                'ring': [lmk_arr[i] for i in range(13, 17)],
+                'pinky': [lmk_arr[i] for i in range(17,21)]
+            }
+    # Convert lists to NumPy arrays
+    for finger_name, landmarks in fingers.items():
+        fingers[finger_name] = np.array(landmarks)
+    return fingers
+
+def get_fingers_tips_landmarks(hand_landmarks:Any)->Tuple[Any,...]:
+    # Access specific hand landmarks for the finger tips
+    thumb_tip = hand_landmarks.landmark[mp_hands.HandLandmark.THUMB_TIP]
+    index_tip = hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP]
+    middle_tip = hand_landmarks.landmark[mp_hands.HandLandmark.MIDDLE_FINGER_TIP]
+    ring_tip = hand_landmarks.landmark[mp_hands.HandLandmark.RING_FINGER_TIP]
+    pinky_tip = hand_landmarks.landmark[mp_hands.HandLandmark.PINKY_TIP]
+    return thumb_tip, index_tip, middle_tip, ring_tip, pinky_tip
+
+
+def finger_status(lmkArr: ndarray) -> List[bool]:
+    """Detect each finger if open
+
+    args:
+        lmkArr (ndarray): array of predicted hand landmarks 21x3
+    Returns:
+        List[bool]: list of [True if finger is open, False other wise]
+    """
+    fingerList = []
+    if lmkArr is not None:
+        originx, originy, _ = lmkArr[0]
+        keypoint_list = [[5, 4], [6, 8], [10, 12], [14, 16], [18, 20]]
+        for point in keypoint_list:
+            x1, y1, _ = lmkArr[point[0]]
+            x2, y2, _ = lmkArr[point[1]]
+            if np.hypot(x2 - originx, y2 - originy) > np.hypot(x1 - originx, y1 - originy):
+                fingerList.append(True)
+            else:
+                fingerList.append(False)
+
+    return fingerList
+

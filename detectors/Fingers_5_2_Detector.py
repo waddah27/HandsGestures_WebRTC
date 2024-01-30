@@ -1,11 +1,14 @@
 from typing import List
 import numpy as np
-from HandGestureRecognition import GestureRecognition
-from utils import angle_f
+from detectors.HandGesturesDetector import GestureRecognition
+from general_utils.utils import angle_f
 
 
-class Fingers_5_2_exercise(GestureRecognition):
+class Fingers_5_2_Detector(GestureRecognition):
     def __init__(self) -> None:
+        """
+        main class for detecting 5+2 exercise gestures
+        """
         super().__init__()
         self.thr_angle_thumb = 30.
         self.thumb_tolerance_factor = 0.1
@@ -35,7 +38,15 @@ class Fingers_5_2_exercise(GestureRecognition):
 
         return fingerList
 
-    def check_5_plus_2_performance(self, lmkArr):
+    def check_5_plus_2_performance(self, lmkArr:np.ndarray) -> int:
+        """
+        Verifies the performance of 5+2 exercise
+        args:
+            lmkArr (ndarray): 3D hand landmarks array 21x3
+        returns:
+            int: the index of the detected gesture: 5, 2 or -1 if it is 2 with wrong fingers
+
+        """
         finger_status_list = self._finger_status(lmkArr)
         thumbOpen, firstOpen, secondOpen, thirdOpen, fourthOpen = finger_status_list
         number = sum(finger_status_list)

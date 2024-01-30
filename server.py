@@ -7,11 +7,14 @@ import ssl
 import uuid
 import time
 import cv2
-from Exercise52Class import Exercise52
+from Exercises.Exercise52Class import Exercise52
+from Exercises.ExerciseLetterAEClass import ExerciseLetterAE
+from Exercises.ExerciseLetterPClass import ExerciseLetterP
+from Exercises.ExerciseSpreadGroupFingersClass import ExerciseSpreadGroupFingers
 from aiohttp import web
 from av import VideoFrame
 
-from aiortc import MediaStreamTrack, RTCPeerConnection, RTCSessionDescription
+from aiortc import MediaStreamTrack, RTCPeerConnection, RTCSessionDescription, VideoStreamTrack
 from aiortc.contrib.media import MediaBlackhole, MediaPlayer, MediaRecorder, MediaRelay
 
 
@@ -20,23 +23,34 @@ ROOT = os.path.dirname(__file__)
 logger = logging.getLogger("pc")
 pcs = set()
 relay = MediaRelay()
-exercise = Exercise52()
-class VideoTransformTrack(MediaStreamTrack):
+exercises = {1:Exercise52(),
+             2:ExerciseSpreadGroupFingers(),
+             3:ExerciseLetterP,
+             4:ExerciseLetterAE}
+exercise = None #Exercise52()
+result_queue = asyncio.Queue()
+res = None
+class VideoTransformTrack(VideoStreamTrack):
     """
     A video stream track that transforms frames from an another track.
     """
 
     kind = "video"
 
-    def __init__(self, track, transform):
+    def __init__(self, track, transform, exercise):
         super().__init__()  # don't forget this!
         self.track = track
         self.transform = transform
+        self.exercise = exercise
         self.frame_count = 0
         self.skip_factor = 1
+        self.feedback = None
+        self.channel = None
 
     async def recv(self):
+        global res
         frame = await self.track.recv()
+
         self.frame_count+=1
 
         if self.transform == "cartoon":
@@ -92,22 +106,25 @@ class VideoTransformTrack(MediaStreamTrack):
             return new_frame
         else:
             img = frame.to_ndarray(format="bgr24")
-            img = exercise.run_fingers_5_2_exercise(img)
-            # print(img.shape)
+            img = cv2.flip(img, 1)
+            img = self.exercise.process(img)
             new_frame = VideoFrame.from_ndarray(img, format="bgr24")
             new_frame.pts = frame.pts
             new_frame.time_base = frame.time_base
-
+            self.feedback = exercise.feedback_text
+            res = exercise.feedback_rus
+            # print(f"RESULT MESSAGE = {res}")
+            # print(self.feedback)
             return new_frame
 
 
 async def index(request):
-    content = open(os.path.join(ROOT, "index.html"), "r").read()
+    content = open(os.path.join(ROOT, "index_New.html"), "r").read()
     return web.Response(content_type="text/html", text=content)
 
 
 async def javascript(request):
-    content = open(os.path.join(ROOT, "client.js"), "r").read()
+    content = open(os.path.join(ROOT, "client_New.js"), "r").read()
     return web.Response(content_type="application/javascript", text=content)
 
 
@@ -131,12 +148,6 @@ async def offer(request):
     else:
         recorder = MediaBlackhole()
 
-    @pc.on("datachannel")
-    def on_datachannel(channel):
-        @channel.on("message")
-        def on_message(message):
-            if isinstance(message, str) and message.startswith("ping"):
-                channel.send("pong" + message[4:])
 
     @pc.on("connectionstatechange")
     async def on_connectionstatechange():
@@ -147,16 +158,22 @@ async def offer(request):
 
     @pc.on("track")
     def on_track(track):
+        global res
         log_info("Track %s received", track.kind)
 
         if track.kind == "audio":
             pc.addTrack(player.audio)
             recorder.addTrack(track)
         elif track.kind == "video":
-            pc.addTrack(
-                VideoTransformTrack(
-                    relay.subscribe(track), transform=params["video_transform"]
+            video_track = VideoTransformTrack(
+                    relay.subscribe(track), transform=params["video_transform"], exercise=exercise
                 )
+            feedback = video_track.recv()
+            # Put the result in the queue for further processing
+            # result_queue.put_nowait(feedback)
+            # res = feedback
+            pc.addTrack(
+                video_track
             )
             if args.record_to:
                 recorder.addTrack(relay.subscribe(track))
@@ -165,6 +182,17 @@ async def offer(request):
         async def on_ended():
             log_info("Track %s ended", track.kind)
             await recorder.stop()
+
+    @pc.on("datachannel")
+    def on_datachannel(channel):
+        global res
+        @channel.on("message")
+        def on_message(message):
+
+            global res
+            if res is not None:
+                channel.send(res)
+
 
     # handle offer
     await pc.setRemoteDescription(offer)
@@ -203,6 +231,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--record-to", help="Write received media to a file."),
     parser.add_argument("--verbose", "-v", action="count")
+    parser.add_argument("--exercise", type=int, help="1 for exercise 5+2, 2 for exercise spread group fingers")
     args = parser.parse_args()
 
     if args.verbose:
@@ -217,12 +246,20 @@ if __name__ == "__main__":
         ssl_context = None
 
 
+    if args.port:
+        port = args.port
+    else:
+        port = int(os.environ.get("PORT", 8089))
+    if args.exercise:
+        exercise = exercises[args.exercise]
+    else:
+        exercise = Exercise52()
 
-    port = int(os.environ.get("PORT", 5000))
+
     app = web.Application()
     app.on_shutdown.append(on_shutdown)
     app.router.add_get("/", index)
-    app.router.add_get("/client.js", javascript)
+    app.router.add_get("/client_New.js", javascript)
     app.router.add_post("/offer", offer)
     web.run_app(
         app, access_log=None, host='0.0.0.0', port=port, ssl_context=ssl_context
